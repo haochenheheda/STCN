@@ -22,6 +22,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import numpy as np
 from PIL import Image
+import cv2
 
 from model.eval_network import STCN
 from dataset.yv_test_dataset import YouTubeVOSTestDataset
@@ -50,6 +51,7 @@ parser.add_argument('--top', type=int, default=20)
 parser.add_argument('--amp', action='store_true')
 parser.add_argument('--mem_every', default=5, type=int)
 parser.add_argument('--include_last', help='include last frame as temporary memory?', action='store_true')
+parser.add_argument('--vis', help='visualize the outputs for analysis', action='store_true')
 args = parser.parse_args()
 
 yv_path = args.yv_path
@@ -85,6 +87,7 @@ prop_model.load_state_dict(prop_saved)
 
 # Start eval
 for data in progressbar(test_loader, max_value=len(test_loader), redirect_stdout=True):
+#for data in test_loader:
 
     with torch.cuda.amp.autocast(enabled=args.amp):
         rgb = data['rgb']
@@ -159,12 +162,29 @@ for data in progressbar(test_loader, max_value=len(test_loader), redirect_stdout
         # Save the results
         this_out_path = path.join(out_path, 'Annotations', name)
         os.makedirs(this_out_path, exist_ok=True)
+        if args.vis:
+            this_out_vis_path = path.join(out_path, 'Vis', name)
+            os.makedirs(this_out_vis_path, exist_ok=True)
+            this_out_vis_video_path = path.join(out_path, 'Video')
+            os.makedirs(this_out_vis_video_path, exist_ok=True)
+
+        saved_num = 0
         for f in range(idx_masks.shape[0]):
             if f >= min_idx:
                 if args.output_all or (f in req_frames):
                     img_E = Image.fromarray(idx_masks[f])
                     img_E.putpalette(palette)
                     img_E.save(os.path.join(this_out_path, info['frames'][f][0].replace('.jpg','.png')))
+
+                    if args.vis:
+                        img_E_array = np.array(img_E.convert('RGB'))
+                        img_RGB = np.array(Image.open(os.path.join(yv_path,'valid/JPEGImages',name,info['frames'][f][0])))
+                        img_RGB[idx_masks[f] > 0] = 0.3 * img_RGB[idx_masks[f] > 0] + 0.7 * img_E_array[idx_masks[f] > 0]
+                        img_RGB = Image.fromarray(img_RGB.astype(np.uint8))
+                        img_RGB.save(os.path.join(this_out_vis_path, str(saved_num).zfill(5) + '.jpg'))
+                        saved_num += 1
+        if args.vis:
+            os.system('ffmpeg -r 5 -f image2 -i {}/%5d.jpg {} -loglevel quiet'.format(this_out_vis_path, os.path.join(this_out_vis_video_path, name + '.mp4')))
 
         del rgb
         del msk
