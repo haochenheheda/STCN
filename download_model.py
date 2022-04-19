@@ -1,9 +1,10 @@
 import os
 import gdown
+import sys
 
 def Command(token, uid, output):
     return 'curl -H "Authorization: Bearer {}" https://www.googleapis.com/drive/v3/files/{}?alt=media -o {}'.format(token,uid,output)
-token = 'ya29.A0ARrdaM-yQnXaj8HFslo8WOafFie5QIezennC7erbCDoQqKcJQmHbBREv77FTg5dk7kiWv-yUh06mmqb96IfEOk6gY6ZHKsL3Ht7BXmkrVOrbWNAa2K0CTEAD2S5uHAfKvLiud-vb-rEvvdv6NDW6dRxwfYFO'
+token = sys.argv[1]
 
 os.makedirs('saves', exist_ok=True)
 print('Downloading stcn.pth...')

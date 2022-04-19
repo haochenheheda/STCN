@@ -2,13 +2,14 @@ import os
 import gdown
 import tarfile
 import multiprocessing
+import sys
 
 def Command(token, uid, output):
     return 'curl -H "Authorization: Bearer {}" https://www.googleapis.com/drive/v3/files/{}?alt=media -o {}'.format(token,uid,output)
 def Script(token, uid, output):
     os.system(Command(token, uid, output))
 
-token = 'ya29.A0ARrdaM9sod-Hdf6qv9wgbu_7b1F9sqrgKAo_N6_CsdSSVIJKnB2sKTdG9TYBvvxVnsdjmllJflaGU4qOlZoCFF_cEGHC2QPDxB2FaWpnrFCPu3DBsU7ZOeUehL-2JkuU3COoMAhio0S2xqpzACFaSYwHdXEP'
+token = sys.argv[1]
 LICENSE = """
 This dataset is a derivative of ShapeNet.
 Please read and respect their licenses and terms before use. 

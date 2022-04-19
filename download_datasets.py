@@ -8,7 +8,7 @@ import sys
 def Command(token, uid, output):
     return 'curl -H "Authorization: Bearer {}" https://www.googleapis.com/drive/v3/files/{}?alt=media -o {}'.format(token,uid,output)
 
-token = 'ya29.A0ARrdaM9PTs6ouBaavfKaaNcKGnenxQKkxbRtAOLhmPubKq3Tzq8foyCyPqPz_XCRKqgUoJmC35WsvPOt3Uid-PzU7UOMH6dlAghS8HtfS-BRV1yjd2bArw_927R7oa2MjWjyCAx6dobup3RCOvdY9tv6WWsV'
+token = sys.argv[1]
 
 LICENSE = """
 These are either re-distribution of the original datasets or derivatives (through simple processing) of the original datasets. 
