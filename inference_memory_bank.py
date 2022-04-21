@@ -1,6 +1,6 @@
 import math
 import torch
-
+from model.positional_encodings import PositionalEncodingPermute3D
 
 def softmax_w_top(x, top):
     values, indices = torch.topk(x, k=top, dim=1)
@@ -25,8 +25,9 @@ class MemoryBank:
         self.mem_v = None
 
         self.num_objects = k
+        self.PE = PositionalEncodingPermute3D(128 * 3)
 
-    def _global_matching(self, mk, qk):
+    def _global_matching(self, mk, qk, mpe, qpe):
         # NE means number of elements -- typically T*H*W
         B, CK, NE = mk.shape
 
@@ -34,7 +35,10 @@ class MemoryBank:
         a_sq = mk.pow(2).sum(1).unsqueeze(2)
         ab = mk.transpose(1, 2) @ qk
 
-        affinity = (2*ab-a_sq) / math.sqrt(CK)   # B, NE, HW
+        pab = (mpe/torch.norm(mpe,dim=1,keepdim=True)).transpose(1,2) @ (qpe/torch.norm(qpe,dim=1,keepdim=True))
+
+
+        affinity = (2*ab-a_sq) * pab / math.sqrt(CK)   # B, NE, HW
         affinity = softmax_w_top(affinity, top=self.top_k)  # B, NE, HW
 
         return affinity
@@ -55,7 +59,13 @@ class MemoryBank:
             mk = self.mem_k
             mv = self.mem_v
 
-        affinity = self._global_matching(mk, qk)
+        mt = mk.shape[-1]//(h*w)
+        pe_tensor = torch.zeros((1,128 * 3, mt + 1, h, w))
+        pe = self.PE(pe_tensor).cuda()
+        mpe = pe[:,:,:-1,:,:].flatten(start_dim=2)
+        qpe = pe[:,:,-1,:,:].flatten(start_dim=2)
+
+        affinity = self._global_matching(mk, qk, mpe, qpe)
 
         # One affinity for all
         readout_mem = self._readout(affinity.expand(k,-1,-1), mv)
