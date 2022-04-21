@@ -13,7 +13,7 @@ from dataset.util import all_to_onehot
 
 
 class YouTubeVOSTestDataset(Dataset):
-    def __init__(self, data_root, split, res=480):
+    def __init__(self, data_root, split, vname = '', res=480):
         self.image_dir = path.join(data_root, 'all_frames', split+'_all_frames', 'JPEGImages')
         self.mask_dir = path.join(data_root, split, 'Annotations')
 
@@ -24,6 +24,8 @@ class YouTubeVOSTestDataset(Dataset):
         vid_list = sorted(os.listdir(self.image_dir))
         # Pre-reading
         for vid in vid_list:
+            if vname != '' and vname != vid:
+                continue
             frames = sorted(os.listdir(os.path.join(self.image_dir, vid)))
             self.frames[vid] = frames
 

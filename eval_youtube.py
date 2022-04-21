@@ -52,6 +52,8 @@ parser.add_argument('--amp', action='store_true')
 parser.add_argument('--mem_every', default=5, type=int)
 parser.add_argument('--include_last', help='include last frame as temporary memory?', action='store_true')
 parser.add_argument('--vis', help='visualize the outputs for analysis', action='store_true')
+parser.add_argument('--vname', type=str, default='')
+
 args = parser.parse_args()
 
 yv_path = args.yv_path
@@ -69,7 +71,7 @@ if not args.output_all:
         meta = json.load(f)['videos']
 
 # Setup Dataset
-test_dataset = YouTubeVOSTestDataset(data_root=yv_path, split=args.split)
+test_dataset = YouTubeVOSTestDataset(data_root=yv_path, split=args.split, vname = args.vname)
 test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)
 
 # Load our checkpoint
@@ -94,6 +96,7 @@ for data in progressbar(test_loader, max_value=len(test_loader), redirect_stdout
         msk = data['gt'][0]
         info = data['info']
         name = info['name'][0]
+
         num_objects = len(info['labels'][0])
         gt_obj = info['gt_obj']
         size = info['size']
