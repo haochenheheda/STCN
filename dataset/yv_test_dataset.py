@@ -22,9 +22,14 @@ class YouTubeVOSTestDataset(Dataset):
         self.frames = {}
 
         vid_list = sorted(os.listdir(self.image_dir))
+
+        if ',' in vname:
+            vnames = vname.split(',')
+        else:
+            vnames = [vname]
         # Pre-reading
         for vid in vid_list:
-            if vname != '' and vname != vid:
+            if vname != '' and vid not in vnames:
                 continue
             frames = sorted(os.listdir(os.path.join(self.image_dir, vid)))
             self.frames[vid] = frames
