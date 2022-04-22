@@ -13,10 +13,31 @@ def softmax_w_top(x, top):
 
     return x
 
+def softmax_w_kmn(x, h, w, sigma):
+    _, memery_ele_n, _ = x.shape
+
+    max_query_index = torch.argmax(x,dim=2)
+
+    # convert max index to 2d position in query image
+    max_query_y = (max_query_index//w).reshape(1,-1,1).repeat(1,1,h*w)
+    max_query_x = (max_query_index%w).reshape(1,-1,1).repeat(1,1,h*w)
+
+    # meshgrid
+    gridy,gridx = torch.meshgrid(torch.Tensor(range(h)),torch.Tensor(range(w)))
+    gridy = gridy.reshape(1,1,-1).repeat(1,memery_ele_n,1).cuda()
+    gridx = gridx.reshape(1,1,-1).repeat(1,memery_ele_n,1).cuda()
+
+    g = torch.exp(-((gridy - max_query_y) ** 2 + (gridx - max_query_x) ** 2)/(2 * sigma ** 2))
+
+    x_exp = x.exp_() * g
+    x_exp /= torch.sum(x_exp, dim=1, keepdim=True)
+
+    return x_exp
 
 class MemoryBank:
-    def __init__(self, k, top_k=20):
+    def __init__(self, k, top_k=20, sigma = 7):
         self.top_k = top_k
+        self.sigma = sigma
 
         self.CK = None
         self.CV = None
@@ -27,7 +48,7 @@ class MemoryBank:
         self.num_objects = k
         self.PE = PositionalEncodingPermute3D(128 * 3)
 
-    def _global_matching(self, mk, qk, mpe, qpe):
+    def _global_matching(self, mk, qk, mpe, qpe, h, w):
         # NE means number of elements -- typically T*H*W
         B, CK, NE = mk.shape
 
@@ -37,12 +58,14 @@ class MemoryBank:
 
         # add cosine similarity of space time positional encoding
         pab = (mpe/torch.norm(mpe,dim=1,keepdim=True)).transpose(1,2) @ (qpe/torch.norm(qpe,dim=1,keepdim=True))
-
-
         #affinity = (2*ab-a_sq) * pab / math.sqrt(CK)   # B, NE, HW
+
+
+
         affinity = (2*ab-a_sq) / math.sqrt(CK)   # B, NE, HW
 
-        affinity = softmax_w_top(affinity, top=self.top_k)  # B, NE, HW
+        #affinity = softmax_w_top(affinity, top=self.top_k)  # B, NE, HW
+        affinity = softmax_w_kmn(affinity, h, w, sigma=self.sigma)  # B, NE, HW
 
         return affinity
 
@@ -68,7 +91,7 @@ class MemoryBank:
         mpe = pe[:,:,:-1,:,:].flatten(start_dim=2)
         qpe = pe[:,:,-1,:,:].flatten(start_dim=2)
 
-        affinity = self._global_matching(mk, qk, mpe, qpe)
+        affinity = self._global_matching(mk, qk, mpe, qpe, h, w)
 
         # One affinity for all
         readout_mem = self._readout(affinity.expand(k,-1,-1), mv)
