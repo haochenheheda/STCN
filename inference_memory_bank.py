@@ -35,10 +35,13 @@ class MemoryBank:
         a_sq = mk.pow(2).sum(1).unsqueeze(2)
         ab = mk.transpose(1, 2) @ qk
 
+        # add cosine similarity of space time positional encoding
         pab = (mpe/torch.norm(mpe,dim=1,keepdim=True)).transpose(1,2) @ (qpe/torch.norm(qpe,dim=1,keepdim=True))
 
 
-        affinity = (2*ab-a_sq) * pab / math.sqrt(CK)   # B, NE, HW
+        #affinity = (2*ab-a_sq) * pab / math.sqrt(CK)   # B, NE, HW
+        affinity = (2*ab-a_sq) / math.sqrt(CK)   # B, NE, HW
+
         affinity = softmax_w_top(affinity, top=self.top_k)  # B, NE, HW
 
         return affinity
