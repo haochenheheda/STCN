@@ -49,7 +49,8 @@ if local_rank == 0:
     # Logging
     if para['id'].lower() != 'null':
         print('I will take the role of logging!')
-        long_id = '%s_%s' % (datetime.datetime.now().strftime('%b%d_%H.%M.%S'), para['id'])
+        #long_id = '%s_%s' % (datetime.datetime.now().strftime('%b%d_%H.%M.%S'), para['id'])
+        long_id = '%s' % (para['id'])
     else:
         long_id = None
     logger = TensorboardLogger(para['id'], long_id)
