@@ -182,7 +182,7 @@ for data in progressbar(test_loader, max_value=len(test_loader), redirect_stdout
                     if args.vis:
                         img_E_array = np.array(img_E.convert('RGB'))
                         img_RGB = np.array(Image.open(os.path.join(yv_path,'valid/JPEGImages',name,info['frames'][f][0])))
-                        img_RGB[idx_masks[f] > 0] = 0.3 * img_RGB[idx_masks[f] > 0] + 0.7 * img_E_array[idx_masks[f] > 0]
+                        img_RGB[idx_masks[f] > 0] = 0.2 * img_RGB[idx_masks[f] > 0] + 0.8 * img_E_array[idx_masks[f] > 0]
                         img_RGB = Image.fromarray(img_RGB.astype(np.uint8))
                         img_RGB.save(os.path.join(this_out_vis_path, str(saved_num).zfill(5) + '.jpg'))
                         saved_num += 1
