@@ -2,6 +2,13 @@ import math
 import torch
 from model.positional_encodings import PositionalEncodingPermute3D
 
+def softmax(x):
+    x_exp = x.exp_()
+    x_exp /= torch.sum(x_exp, dim=1, keepdim=True)
+    import pdb
+    pdb.set_trace()
+    return x_exp
+
 def softmax_w_top(x, top):
     values, indices = torch.topk(x, k=top, dim=1)
     x_exp = values.exp_()
@@ -35,7 +42,8 @@ def softmax_w_kmn(x, h, w, sigma):
     return x_exp
 
 class MemoryBank:
-    def __init__(self, k, top_k=20, sigma = 7):
+    def __init__(self, k, top_k=20, sigma = 7, memory_type = 'topk'):
+        self.memory_type = memory_type
         self.top_k = top_k
         self.sigma = sigma
 
@@ -60,12 +68,17 @@ class MemoryBank:
         pab = (mpe/torch.norm(mpe,dim=1,keepdim=True)).transpose(1,2) @ (qpe/torch.norm(qpe,dim=1,keepdim=True))
         #affinity = (2*ab-a_sq) * pab / math.sqrt(CK)   # B, NE, HW
 
-
-
         affinity = (2*ab-a_sq) / math.sqrt(CK)   # B, NE, HW
 
-        #affinity = softmax_w_top(affinity, top=self.top_k)  # B, NE, HW
-        affinity = softmax_w_kmn(affinity, h, w, sigma=self.sigma)  # B, NE, HW
+
+        assert self.memory_type in ['normal', 'topk', 'kmn']
+
+        if self.memory_type == 'normal':
+            affinity = softmax(affinity)  # B, NE, HW
+        elif self.memory_type == 'topk':
+            affinity = softmax_w_top(affinity, top=self.top_k)  # B, NE, HW
+        elif self.memory_type == 'kmn':
+            affinity = softmax_w_kmn(affinity, h, w, sigma=self.sigma)  # B, NE, HW
 
         return affinity
 

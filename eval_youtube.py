@@ -53,6 +53,9 @@ parser.add_argument('--mem_every', default=5, type=int)
 parser.add_argument('--include_last', help='include last frame as temporary memory?', action='store_true')
 parser.add_argument('--vis', help='visualize the outputs for analysis', action='store_true')
 parser.add_argument('--vname', type=str, default='')
+parser.add_argument('--memory_type', type=str, default='topk')
+parser.add_argument('--sigma', type=int, default=7)
+parser.add_argument('--res', type=int, default=480)
 
 args = parser.parse_args()
 
@@ -71,11 +74,12 @@ if not args.output_all:
         meta = json.load(f)['videos']
 
 # Setup Dataset
-test_dataset = YouTubeVOSTestDataset(data_root=yv_path, split=args.split, vname = args.vname)
+test_dataset = YouTubeVOSTestDataset(data_root=yv_path, split=args.split, vname = args.vname, res = args.res)
 test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)
 
 # Load our checkpoint
 top_k = args.top
+sigma = args.sigma
 prop_model = STCN().cuda().eval()
 
 # Performs input mapping such that stage 0 model can be loaded
@@ -123,7 +127,7 @@ for data in progressbar(test_loader, max_value=len(test_loader), redirect_stdout
 
         processor = InferenceCore(prop_model, rgb, num_objects=num_objects, top_k=top_k, 
                                     mem_every=args.mem_every, include_last=args.include_last, 
-                                    req_frames=req_frames)
+                                    req_frames=req_frames, memory_type = args.memory_type, sigma = sigma)
         # min_idx tells us the starting point of propagation
         # Propagating before there are labels is not useful
         min_idx = 99999

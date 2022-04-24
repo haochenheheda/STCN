@@ -9,16 +9,18 @@ from util.tensor_util import pad_divide_by
 
 class InferenceCore:
     def __init__(self, prop_net:STCN, images, num_objects, top_k=20, 
-                    mem_every=5, include_last=False, req_frames=None):
+                    mem_every=5, include_last=False, req_frames=None, memory_type = 'topk', sigma = 7):
         self.prop_net = prop_net
         self.mem_every = mem_every
         self.include_last = include_last
+        self.memory_type = memory_type
 
         # We HAVE to get the output for these frames
         # None if all frames are required
         self.req_frames = req_frames
 
         self.top_k = top_k
+        self.sigma = sigma
 
         # True dimensions
         t = images.shape[1]
@@ -60,7 +62,7 @@ class InferenceCore:
 
         for i, oi in enumerate(self.enabled_obj):
             if oi not in self.mem_banks:
-                self.mem_banks[oi] = MemoryBank(k=1, top_k=self.top_k)
+                self.mem_banks[oi] = MemoryBank(k=1, top_k=self.top_k, sigma = self.sigma, memory_type = self.memory_type)
             self.mem_banks[oi].add_memory(key_k, key_v[i:i+1])
 
         last_ti = idx
