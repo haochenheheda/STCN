@@ -56,6 +56,8 @@ parser.add_argument('--vname', type=str, default='')
 parser.add_argument('--memory_type', type=str, default='topk')
 parser.add_argument('--sigma', type=int, default=7)
 parser.add_argument('--res', type=int, default=480)
+parser.add_argument('--save_logits', help='save logits for multi-scale inference or ensemble', action='store_true')
+
 
 args = parser.parse_args()
 
@@ -152,13 +154,19 @@ for data in progressbar(test_loader, max_value=len(test_loader), redirect_stdout
 
         # Do unpad -> upsample to original size (we made it 480p)
         out_masks = torch.zeros((processor.t, 1, *size), dtype=torch.uint8, device='cuda')
+        if args.save_logits:
+            out_logits = torch.zeros((processor.t, num_objects + 1, *size), dtype=torch.float16, device='cuda')
 
         for ti in range(processor.t):
             prob = unpad(processor.prob[:,ti], processor.pad)
             prob = F.interpolate(prob, size, mode='bilinear', align_corners=False)
             out_masks[ti] = torch.argmax(prob, dim=0)
+            if args.save_logits:
+                out_logits[ti] = prob[:,0]
+
 
         out_masks = (out_masks.detach().cpu().numpy()[:,0]).astype(np.uint8)
+        out_logits = (out_logits.detach().cpu().numpy()[:,0]).astype(np.uint8)
 
         # Remap the indices to the original domain
         idx_masks = np.zeros_like(out_masks)
@@ -175,6 +183,12 @@ for data in progressbar(test_loader, max_value=len(test_loader), redirect_stdout
             this_out_vis_video_path = path.join(out_path, 'Video')
             os.makedirs(this_out_vis_video_path, exist_ok=True)
 
+        if args.save_logits:
+            this_logits_path = path.join(out_path, 'Logits', name)
+            os.makedirs(this_logits_path, exist_ok=True)
+            np.save(os.path.join(this_logits_path, 'logits.npy'), out_logits)
+        import pdb
+        pdb.set_trace()
         saved_num = 0
         for f in range(idx_masks.shape[0]):
             if f >= min_idx:
