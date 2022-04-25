@@ -54,6 +54,8 @@ parser.add_argument('--include_last', help='include last frame as temporary memo
 parser.add_argument('--vis', help='visualize the outputs for analysis', action='store_true')
 parser.add_argument('--vname', type=str, default='')
 parser.add_argument('--memory_type', type=str, default='topk')
+parser.add_argument('--sigma', type=int, default=7)
+
 
 args = parser.parse_args()
 
@@ -71,17 +73,18 @@ if not args.output_all:
     with open(path.join(yv_path, args.split, 'meta.json')) as f:
         meta = json.load(f)['videos']
 
-
 # Setup Dataset
-test_dataset = YouTubeVOSTestDataset(data_root=yv_path, split=args.split, vname = args.vname, res=480)
-test_loader480 = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)
+test_dataset = YouTubeVOSTestDataset(data_root=yv_path, split=args.split, vname = args.vname, res = 480)
+test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)
+test_iter480 = iter(test_loader)
 
-test_dataset = YouTubeVOSTestDataset(data_root=yv_path, split=args.split, vname = args.vname, res=600)
-test_loader600 = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)
-
+test_dataset1 = YouTubeVOSTestDataset(data_root=yv_path, split=args.split, vname = args.vname, res = 600)
+test_loader1 = DataLoader(test_dataset1, batch_size=1, shuffle=False, num_workers=4)
+test_iter600 = iter(test_loader1)
 
 # Load our checkpoint
 top_k = args.top
+sigma = args.sigma
 prop_model = STCN().cuda().eval()
 
 # Performs input mapping such that stage 0 model can be loaded
@@ -94,119 +97,129 @@ for k in list(prop_saved.keys()):
 prop_model.load_state_dict(prop_saved)
 
 # Start eval
-#for data in progressbar(zip(test_loader_dict), max_value=len(test_loader), redirect_stdout=True):
-for data480, data600 in progressbar(zip(test_loader480, test_loader600), max_value=len(test_loader480), redirect_stdout=True):
-    probs = [[], [], [], []]
-    with torch.cuda.amp.autocast(enabled=args.amp):
-        for flip_index in range(2):
-            for infer_index, data in enumerate([data480, data600]):
-                rgb = data['rgb']
-                msk = data['gt'][0]
-                if flip_index == 1:
-                    rgb = torch.flip(rgb,dims=(4,))
-                    msk = torch.flip(msk,dims=(4,))
+inference_num = 0
+while True:
+    print(inference_num)
+    inference_num += 1
+    for inference_setting in ['480o', '480f', '600o', '600f']:
+        try:
+            if inference_setting == '480o':
+                data = next(test_iter480)
+            elif inference_setting == '600o':
+                data = next(test_iter600)
+        except:
+            break
 
-                info = data['info']
-                name = info['name'][0]
-    
-                num_objects = len(info['labels'][0])
-                gt_obj = info['gt_obj']
-                size = info['size']
-    
-                # Load the required set of frames (if we don't need all)
-                req_frames = None
-                if not args.output_all:
-                    req_frames = []
-                    objects = meta[name]['objects']
-                    for key, value in objects.items():
-                        req_frames.extend(value['frames'])
-    
-                    # Map the frame names to indices
-                    req_frames_names = set(req_frames)
-                    req_frames = []
-                    for fi in range(rgb.shape[1]):
-                        frame_name = info['frames'][fi][0][:-4]
-                        if frame_name in req_frames_names:
-                            req_frames.append(fi)
-                    req_frames = sorted(req_frames)
-    
-                # Frames with labels, but they are not exhaustively labeled
-                frames_with_gt = sorted(list(gt_obj.keys()))
-    
-                processor = InferenceCore(prop_model, rgb, num_objects=num_objects, top_k=top_k, 
-                                            mem_every=args.mem_every, include_last=args.include_last, 
-                                            req_frames=req_frames, memory_type = args.memory_type)
-                # min_idx tells us the starting point of propagation
-                # Propagating before there are labels is not useful
-                min_idx = 99999
-                for i, frame_idx in enumerate(frames_with_gt):
-                    min_idx = min(frame_idx, min_idx)
-                    # Note that there might be more than one label per frame
-                    obj_idx = gt_obj[frame_idx][0].tolist()
-                    # Map the possibly non-continuous labels into a continuous scheme
-                    obj_idx = [info['label_convert'][o].item() for o in obj_idx]
-    
-                    # Append the background label
-                    with_bg_msk = torch.cat([
-                        1 - torch.sum(msk[:,frame_idx], dim=0, keepdim=True),
-                        msk[:,frame_idx],
-                    ], 0).cuda()
-    
-                    # We perform propagation from the current frame to the next frame with label
-                    if i == len(frames_with_gt) - 1:
-                        processor.interact(with_bg_msk, frame_idx, rgb.shape[1], obj_idx)
-                    else:
-                        processor.interact(with_bg_msk, frame_idx, frames_with_gt[i+1]+1, obj_idx)
-    
+        with torch.cuda.amp.autocast(enabled=args.amp):
+            rgb = data['rgb']
+            msk = data['gt'][0]
+            if inference_setting in ['480f', '600f']:
+                rgb = torch.flip(rgb, dims=(4,))
+                msk = torch.flip(msk, dims=(4,))
+            info = data['info']
+            name = info['name'][0]
 
-                for ti in range(processor.t):
-                    prob = unpad(processor.prob[:,ti], processor.pad)
-                    prob = F.interpolate(prob, size, mode='bilinear', align_corners=False)
+            num_objects = len(info['labels'][0])
+            gt_obj = info['gt_obj']
+            size = info['size']
+
+            # Load the required set of frames (if we don't need all)
+            req_frames = None
+            if not args.output_all:
+                req_frames = []
+                objects = meta[name]['objects']
+                for key, value in objects.items():
+                    req_frames.extend(value['frames'])
+
+                # Map the frame names to indices
+                req_frames_names = set(req_frames)
+                req_frames = []
+                for fi in range(rgb.shape[1]):
+                    frame_name = info['frames'][fi][0][:-4]
+                    if frame_name in req_frames_names:
+                        req_frames.append(fi)
+                req_frames = sorted(req_frames)
+
+            # Frames with labels, but they are not exhaustively labeled
+            frames_with_gt = sorted(list(gt_obj.keys()))
+
+            processor = InferenceCore(prop_model, rgb, num_objects=num_objects, top_k=top_k, 
+                                        mem_every=args.mem_every, include_last=args.include_last, 
+                                        req_frames=req_frames, memory_type = args.memory_type, sigma = sigma)
+            # min_idx tells us the starting point of propagation
+            # Propagating before there are labels is not useful
+            min_idx = 99999
+            for i, frame_idx in enumerate(frames_with_gt):
+                min_idx = min(frame_idx, min_idx)
+                # Note that there might be more than one label per frame
+                obj_idx = gt_obj[frame_idx][0].tolist()
+                # Map the possibly non-continuous labels into a continuous scheme
+                obj_idx = [info['label_convert'][o].item() for o in obj_idx]
+
+                # Append the background label
+                with_bg_msk = torch.cat([
+                    1 - torch.sum(msk[:,frame_idx], dim=0, keepdim=True),
+                    msk[:,frame_idx],
+                ], 0).cuda()
+
+                # We perform propagation from the current frame to the next frame with label
+                if i == len(frames_with_gt) - 1:
+                    processor.interact(with_bg_msk, frame_idx, rgb.shape[1], obj_idx)
+                else:
+                    processor.interact(with_bg_msk, frame_idx, frames_with_gt[i+1]+1, obj_idx)
+
+            # Do unpad -> upsample to original size (we made it 480p)
+            out_masks = torch.zeros((processor.t, 1, *size), dtype=torch.uint8, device='cuda')
+
+            if inference_setting == '480o':
+                out_logits = torch.zeros((processor.t, num_objects + 1, 1, *size), dtype=torch.float32, device='cuda')
+            for ti in range(processor.t):
+                prob = unpad(processor.prob[:,ti], processor.pad)
+                prob = F.interpolate(prob, size, mode='bilinear', align_corners=False)
+                if inference_setting in ['480f', '600f']:
                     prob = torch.flip(prob,dims=(3,))
-                    probs[flip_index * 2 + infer_index].append(prob)
+
+                out_logits[ti] = out_logits[ti] + prob
+                #out_masks[ti] = torch.argmax(prob, dim=0)
+
+            del rgb
+            del msk
+            del processor
 
 
-        # Do unpad -> upsample to original size (we made it 480p)
-        out_masks = torch.zeros((processor.t, 1, *size), dtype=torch.uint8).cuda()
-        for ti, (prob480, prob600, prob480_flip, prob600_flip) in enumerate(zip(probs[0], probs[1], probs[2], probs[3])):
-            out_masks[ti] = torch.argmax(prob480 + prob600 + prob480_flip + prob600_flip, dim=0)
 
-        out_masks = (out_masks.detach().cpu().numpy()[:,0]).astype(np.uint8)
-
-        # Remap the indices to the original domain
-        idx_masks = np.zeros_like(out_masks)
-        for i in range(1, num_objects+1):
-            backward_idx = info['label_backward'][i].item()
-            idx_masks[out_masks==i] = backward_idx
+    #out_masks = (out_masks.detach().cpu().numpy()[:,0]).astype(np.uint8)
+    out_masks = (torch.argmax(out_logits, dim=1).detach().cpu().numpy()[:,0]).astype(np.uint8)
+    # Remap the indices to the original domain
+    idx_masks = np.zeros_like(out_masks)
+    for i in range(1, num_objects+1):
+        backward_idx = info['label_backward'][i].item()
+        idx_masks[out_masks==i] = backward_idx
         
-        # Save the results
-        this_out_path = path.join(out_path, 'Annotations', name)
-        os.makedirs(this_out_path, exist_ok=True)
-        if args.vis:
-            this_out_vis_path = path.join(out_path, 'Vis', name)
-            os.makedirs(this_out_vis_path, exist_ok=True)
-            this_out_vis_video_path = path.join(out_path, 'Video')
-            os.makedirs(this_out_vis_video_path, exist_ok=True)
+    # Save the results
+    this_out_path = path.join(out_path, 'Annotations', name)
+    os.makedirs(this_out_path, exist_ok=True)
+    if args.vis:
+        this_out_vis_path = path.join(out_path, 'Vis', name)
+        os.makedirs(this_out_vis_path, exist_ok=True)
+        this_out_vis_video_path = path.join(out_path, 'Video')
+        os.makedirs(this_out_vis_video_path, exist_ok=True)
 
-        saved_num = 0
-        for f in range(idx_masks.shape[0]):
-            if f >= min_idx:
-                if args.output_all or (f in req_frames):
-                    img_E = Image.fromarray(idx_masks[f])
-                    img_E.putpalette(palette)
-                    img_E.save(os.path.join(this_out_path, info['frames'][f][0].replace('.jpg','.png')))
+    saved_num = 0
+    for f in range(idx_masks.shape[0]):
+        if f >= min_idx:
+            if args.output_all or (f in req_frames):
+                img_E = Image.fromarray(idx_masks[f])
+                img_E.putpalette(palette)
+                img_E.save(os.path.join(this_out_path, info['frames'][f][0].replace('.jpg','.png')))
 
-                    if args.vis:
-                        img_E_array = np.array(img_E.convert('RGB'))
-                        img_RGB = np.array(Image.open(os.path.join(yv_path,'valid/JPEGImages',name,info['frames'][f][0])))
-                        img_RGB[idx_masks[f] > 0] = 0.2 * img_RGB[idx_masks[f] > 0] + 0.8 * img_E_array[idx_masks[f] > 0]
-                        img_RGB = Image.fromarray(img_RGB.astype(np.uint8))
-                        img_RGB.save(os.path.join(this_out_vis_path, str(saved_num).zfill(5) + '.jpg'))
-                        saved_num += 1
-        if args.vis:
-            os.system('ffmpeg -r 5 -f image2 -i {}/%5d.jpg {} -loglevel quiet'.format(this_out_vis_path, os.path.join(this_out_vis_video_path, name + '.mp4')))
+                if args.vis:
+                    img_E_array = np.array(img_E.convert('RGB'))
+                    img_RGB = np.array(Image.open(os.path.join(yv_path,'valid/JPEGImages',name,info['frames'][f][0])))
+                    img_RGB[idx_masks[f] > 0] = 0.2 * img_RGB[idx_masks[f] > 0] + 0.8 * img_E_array[idx_masks[f] > 0]
+                    img_RGB = Image.fromarray(img_RGB.astype(np.uint8))
+                    img_RGB.save(os.path.join(this_out_vis_path, str(saved_num).zfill(5) + '.jpg'))
+                    saved_num += 1
+    if args.vis:
+        os.system('ffmpeg -r 5 -f image2 -i {}/%5d.jpg {} -loglevel quiet'.format(this_out_vis_path, os.path.join(this_out_vis_video_path, name + '.mp4')))
 
-        del rgb
-        del msk
-        del processor
-        del probs
