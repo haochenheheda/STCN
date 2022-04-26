@@ -5,8 +5,6 @@ from model.positional_encodings import PositionalEncodingPermute3D
 def softmax(x):
     x_exp = x.exp_()
     x_exp /= torch.sum(x_exp, dim=1, keepdim=True)
-    import pdb
-    pdb.set_trace()
     return x_exp
 
 def softmax_w_top(x, top):
@@ -37,9 +35,14 @@ def softmax_w_kmn(x, h, w, sigma):
     g = torch.exp(-((gridy - max_query_y) ** 2 + (gridx - max_query_x) ** 2)/(2 * sigma ** 2))
 
     x_exp = x.exp_() * g
-    x_exp /= torch.sum(x_exp, dim=1, keepdim=True)
+    values, indices = torch.topk(x_exp, k=20, dim=1)
 
-    return x_exp
+    values /= torch.sum(values, dim=1, keepdim=True)
+
+    x.zero_().scatter_(1, indices, values.type(x.dtype))
+
+
+    return x
 
 class MemoryBank:
     def __init__(self, k, top_k=20, sigma = 7, memory_type = 'topk'):
