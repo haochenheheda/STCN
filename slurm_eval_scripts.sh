@@ -13,5 +13,5 @@ conda init bash
 source activate
 conda activate STCN
 
-python eval_youtube.py --output output_bs16_g1 --model saves/retrain_b32_g1_s03/retrain_b32_g1_s03_100000.pth
+python eval_youtube.py --output output_bs32_g1 --model saves/retrain_b32_g1_s03/retrain_b32_g1_s03_100000.pth
 
