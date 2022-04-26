@@ -13,5 +13,5 @@ conda init bash
 source activate
 conda activate STCN
 
-python eval_youtube_ms.py --output output_ms
+python eval_youtube_ms.py --output output_ms_top_kmn
 

@@ -101,6 +101,12 @@ inference_num = 0
 while True:
     print(inference_num)
     inference_num += 1
+
+    ##############################
+    if inference_num > 507:
+        break
+    ##############################
+
     for inference_setting in ['480o', '480f', '600o', '600f']:
         try:
             if inference_setting == '480o':
@@ -143,9 +149,14 @@ while True:
             # Frames with labels, but they are not exhaustively labeled
             frames_with_gt = sorted(list(gt_obj.keys()))
 
+            if inference_setting in ['480o', '480f']:
+                memory_type = 'topk'
+            elif inference_setting in ['600o', '600f']:
+                memory_type = 'kmn'
+
             processor = InferenceCore(prop_model, rgb, num_objects=num_objects, top_k=top_k, 
                                         mem_every=args.mem_every, include_last=args.include_last, 
-                                        req_frames=req_frames, memory_type = args.memory_type, sigma = sigma)
+                                        req_frames=req_frames, memory_type = memory_type, sigma = sigma)
             # min_idx tells us the starting point of propagation
             # Propagating before there are labels is not useful
             min_idx = 99999
