@@ -55,38 +55,52 @@ class FeatureFusionBlock(nn.Module):
 # This will be loaded and modified into the multiple objects version later (in stage 1/2/3)
 # See model.py (load_network) for the modification procedure
 class ValueEncoderSO(nn.Module):
-    def __init__(self):
+    def __init__(self, value_encoder_type='resnet18'):
         super().__init__()
+        
+        if value_encoder_type == 'resnet18':
+            resnet = mod_resnet.resnet18(pretrained=True, extra_chan=1)
+            self.conv1 = resnet.conv1
+            self.bn1 = resnet.bn1
+            self.relu = resnet.relu  # 1/2, 64
+            self.maxpool = resnet.maxpool
 
-        # resnet = mod_resnet.resnet18(pretrained=True, extra_chan=1)
-        # #resnet = mod_resnet.resnet50(pretrained=True, extra_chan=1)
-        # self.conv1 = resnet.conv1
-        # self.bn1 = resnet.bn1
-        # self.relu = resnet.relu  # 1/2, 64
-        # self.maxpool = resnet.maxpool
+            self.layer1 = resnet.layer1 # 1/4, 64
+            self.layer2 = resnet.layer2 # 1/8, 128
+            self.layer3 = resnet.layer3 # 1/16, 256
 
-        # self.layer1 = resnet.layer1 # 1/4, 64
-        # self.layer2 = resnet.layer2 # 1/8, 128
-        # self.layer3 = resnet.layer3 # 1/16, 256
+            self.fuser = FeatureFusionBlock(1024 + 256, 512)
 
-        # self.fuser = FeatureFusionBlock(1024 + 256, 512)
+        elif value_encoder_type == 'resnet50':
+            resnet = mod_resnet.resnet50(pretrained=True, extra_chan=1)
+            self.conv1 = resnet.conv1
+            self.bn1 = resnet.bn1
+            self.relu = resnet.relu  # 1/2, 64
+            self.maxpool = resnet.maxpool
+
+            self.layer1 = resnet.layer1 # 1/4, 64
+            self.layer2 = resnet.layer2 # 1/8, 128
+            self.layer3 = resnet.layer3 # 1/16, 256
+
+            self.fuser = FeatureFusionBlock(1024 + 1024, 512)
 
         #########################################################################
-        m = timm.create_model('resnest101e', features_only=True, pretrained=True)
-        self.conv1 = m.conv1
-        self.extra_conv = nn.Conv2d(4, 64, kernel_size=(3,3), stride=(2,2),padding=(1,1),bias=False)
-        self.extra_conv.weight.data[:,:3,:,:] = self.conv1[0].weight.data
-        nn.init.orthogonal_(self.extra_conv.weight[:,3:4,:,:])
-        self.conv1[0] = self.extra_conv
-        self.bn1 = m.bn1
-        self.relu = m.act1  # 1/2, 64
-        self.maxpool = m.maxpool
+        elif value_encoder_type == 'resnest101':
+            m = timm.create_model('resnest101e', features_only=True, pretrained=True)
+            self.conv1 = m.conv1
+            self.extra_conv = nn.Conv2d(4, 64, kernel_size=(3,3), stride=(2,2),padding=(1,1),bias=False)
+            self.extra_conv.weight.data[:,:3,:,:] = self.conv1[0].weight.data
+            nn.init.orthogonal_(self.extra_conv.weight[:,3:4,:,:])
+            self.conv1[0] = self.extra_conv
+            self.bn1 = m.bn1
+            self.relu = m.act1  # 1/2, 64
+            self.maxpool = m.maxpool
 
-        self.layer1 = m.layer1 # 1/4, 64
-        self.layer2 = m.layer2 # 1/8, 128
-        self.layer3 = m.layer3 # 1/16, 256
+            self.layer1 = m.layer1 # 1/4, 64
+            self.layer2 = m.layer2 # 1/8, 128
+            self.layer3 = m.layer3 # 1/16, 256
 
-        self.fuser = FeatureFusionBlock(1024 + 1024, 512)
+            self.fuser = FeatureFusionBlock(1024 + 1024, 512)
         ########################################################################
 
     def forward(self, image, key_f16, mask):
@@ -109,38 +123,52 @@ class ValueEncoderSO(nn.Module):
 
 # Multiple objects version, used in other times
 class ValueEncoder(nn.Module):
-    def __init__(self):
+    def __init__(self, value_encoder_type='resnet18'):
         super().__init__()
+    
+        if value_encoder_type == 'resnet18':
+            resnet = mod_resnet.resnet18(pretrained=True, extra_chan=2)
+            self.conv1 = resnet.conv1
+            self.bn1 = resnet.bn1
+            self.relu = resnet.relu  # 1/2, 64
+            self.maxpool = resnet.maxpool
 
-        resnet = mod_resnet.resnet18(pretrained=True, extra_chan=2)
-        #resnet = mod_resnet.resnet50(pretrained=True, extra_chan=2)
-        self.conv1 = resnet.conv1
-        self.bn1 = resnet.bn1
-        self.relu = resnet.relu  # 1/2, 64
-        self.maxpool = resnet.maxpool
+            self.layer1 = resnet.layer1 # 1/4, 64
+            self.layer2 = resnet.layer2 # 1/8, 128
+            self.layer3 = resnet.layer3 # 1/16, 256
 
-        self.layer1 = resnet.layer1 # 1/4, 64
-        self.layer2 = resnet.layer2 # 1/8, 128
-        self.layer3 = resnet.layer3 # 1/16, 256
+            self.fuser = FeatureFusionBlock(1024 + 256, 512)
 
-        self.fuser = FeatureFusionBlock(1024 + 256, 512)
+        elif value_encoder_type == 'resnet50':
+            resnet = mod_resnet.resnet50(pretrained=True, extra_chan=2)
+            self.conv1 = resnet.conv1
+            self.bn1 = resnet.bn1
+            self.relu = resnet.relu  # 1/2, 64
+            self.maxpool = resnet.maxpool
+
+            self.layer1 = resnet.layer1 # 1/4, 64
+            self.layer2 = resnet.layer2 # 1/8, 128
+            self.layer3 = resnet.layer3 # 1/16, 256
+
+            self.fuser = FeatureFusionBlock(1024 + 1024, 512)
 
         #########################################################################
-        #m = timm.create_model('resnest101e', features_only=True, pretrained=True)
-        #self.conv1 = m.conv1
-        #self.extra_conv = nn.Conv2d(4, 64, kernel_size=(3,3), stride=(2,2),padding=(1,1),bias=False)
-        #self.extra_conv.weight.data[:,:3,:,:] = self.conv1[0].weight.data
-        #nn.init.orthogonal_(self.extra_conv.weight[:,3:4,:,:])
-        #self.conv1[0] = self.extra_conv
-        #self.bn1 = m.bn1
-        #self.relu = m.act1  # 1/2, 64
-        #self.maxpool = m.maxpool
+        elif value_encoder_type == 'resnest101':
+            m = timm.create_model('resnest101e', features_only=True, pretrained=True)
+            self.conv1 = m.conv1
+            self.extra_conv = nn.Conv2d(5, 64, kernel_size=(3,3), stride=(2,2),padding=(1,1),bias=False)
+            self.extra_conv.weight.data[:,:3,:,:] = self.conv1[0].weight.data
+            nn.init.orthogonal_(self.extra_conv.weight[:,3:5,:,:])
+            self.conv1[0] = self.extra_conv
+            self.bn1 = m.bn1
+            self.relu = m.act1  # 1/2, 64
+            self.maxpool = m.maxpool
 
-        #self.layer1 = m.layer1 # 1/4, 64
-        #self.layer2 = m.layer2 # 1/8, 128
-        #self.layer3 = m.layer3 # 1/16, 256
+            self.layer1 = m.layer1 # 1/4, 64
+            self.layer2 = m.layer2 # 1/8, 128
+            self.layer3 = m.layer3 # 1/16, 256
 
-        #self.fuser = FeatureFusionBlock(1024 + 1024, 512)
+            self.fuser = FeatureFusionBlock(1024 + 1024, 512)
         ########################################################################
 
     def forward(self, image, key_f16, mask, other_masks):

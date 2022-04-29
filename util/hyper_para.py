@@ -39,6 +39,7 @@ class HyperParameters():
 
         # Multiprocessing parameters, not set by users
         parser.add_argument('--local_rank', default=0, type=int, help='Local rank of this process')
+        parser.add_argument('--value_encoder_type', default='resnet18', type=str, help='type of value encoder')
 
         if unknown_arg_ok:
             args, _ = parser.parse_known_args()

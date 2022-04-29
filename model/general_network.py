@@ -72,15 +72,16 @@ class MemoryReader(nn.Module):
 
 
 class STCN(nn.Module):
-    def __init__(self, single_object):
+    def __init__(self, single_object, value_encoder_type = 'resnet18'):
         super().__init__()
         self.single_object = single_object
+        self.value_encoder_type = value_encoder_type
 
         self.key_encoder = KeyEncoder()
         if single_object:
-            self.value_encoder = ValueEncoderSO() 
+            self.value_encoder = ValueEncoderSO(self.value_encoder_type) 
         else:
-            self.value_encoder = ValueEncoder() 
+            self.value_encoder = ValueEncoder(self.value_encoder_type) 
 
         # Projection from f16 feature space to key space
         self.key_proj = KeyProjection(1024, keydim=64)
