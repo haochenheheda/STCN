@@ -217,9 +217,10 @@ class STCNModel:
 
         # Maps SO weight (without other_mask) to MO weight (with other_mask)
         for k in list(src_dict.keys()):
-            if k == 'value_encoder.conv1.weight':
+            if k == 'value_encoder.conv1.weight' or k == 'value_encoder.conv1.0.weight' or k == 'value_encoder.extra_conv.weight':
                 if src_dict[k].shape[1] == 4:
-                    pads = torch.zeros((64,1,7,7), device=src_dict[k].device)
+                    dout, din, ks, ks = src_dict[k].shape
+                    pads = torch.zeros((dout,1,ks,ks), device=src_dict[k].device)
                     nn.init.orthogonal_(pads)
                     src_dict[k] = torch.cat([src_dict[k], pads], 1)
 
