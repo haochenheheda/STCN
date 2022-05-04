@@ -23,7 +23,7 @@ class STCNModel:
         self.local_rank = local_rank
 
         self.STCN = nn.parallel.DistributedDataParallel(
-            STCN(self.single_object, value_encoder_type = self.para['value_encoder_type']).cuda(), 
+            STCN(self.single_object, value_encoder_type = self.para['value_encoder_type'], key_encoder_type = self.para['key_encoder_type'], aspp = self.para['aspp']).cuda(), 
             device_ids=[local_rank], output_device=local_rank, broadcast_buffers=False)
 
         # Setup logger when local_rank=0

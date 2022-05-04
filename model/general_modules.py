@@ -55,7 +55,7 @@ class FeatureFusionBlock(nn.Module):
 # This will be loaded and modified into the multiple objects version later (in stage 1/2/3)
 # See model.py (load_network) for the modification procedure
 class ValueEncoderSO(nn.Module):
-    def __init__(self, value_encoder_type='resnet18'):
+    def __init__(self, value_encoder_type='resnet18', key_encoder_type='resnet50'):
         super().__init__()
         
         if value_encoder_type == 'resnet18':
@@ -69,39 +69,46 @@ class ValueEncoderSO(nn.Module):
             self.layer2 = resnet.layer2 # 1/8, 128
             self.layer3 = resnet.layer3 # 1/16, 256
 
-            self.fuser = FeatureFusionBlock(1024 + 256, 512)
+            if key_encoder_type == 'resnet50' or key_encoder_type == 'wide_resnet50' or key_encoder_type == 'resnest101' or key_encoder_type == 'resnet50_v2':
+                fuse_indim = 1024
+            elif key_encoder_type == 'convext':
+                fuse_indim = 512
+            elif key_encoder_type == 'regnet':
+                fuse_indim = 384
 
-        elif value_encoder_type == 'resnet50':
-            resnet = mod_resnet.resnet50(pretrained=True, extra_chan=1)
-            self.conv1 = resnet.conv1
-            self.bn1 = resnet.bn1
-            self.relu = resnet.relu  # 1/2, 64
-            self.maxpool = resnet.maxpool
+            self.fuser = FeatureFusionBlock(fuse_indim + 256, 512)
 
-            self.layer1 = resnet.layer1 # 1/4, 64
-            self.layer2 = resnet.layer2 # 1/8, 128
-            self.layer3 = resnet.layer3 # 1/16, 256
+        #elif value_encoder_type == 'resnet50':
+        #    resnet = mod_resnet.resnet50(pretrained=True, extra_chan=1)
+        #    self.conv1 = resnet.conv1
+        #    self.bn1 = resnet.bn1
+        #    self.relu = resnet.relu  # 1/2, 64
+        #    self.maxpool = resnet.maxpool
 
-            self.fuser = FeatureFusionBlock(1024 + 1024, 512)
+        #    self.layer1 = resnet.layer1 # 1/4, 64
+        #    self.layer2 = resnet.layer2 # 1/8, 128
+        #    self.layer3 = resnet.layer3 # 1/16, 256
 
+        #    self.fuser = FeatureFusionBlock(1024 + 1024, 512)
+
+        ##########################################################################
+        #elif value_encoder_type == 'resnest101':
+        #    m = timm.create_model('resnest101e', features_only=True, pretrained=True)
+        #    self.conv1 = m.conv1
+        #    self.extra_conv = nn.Conv2d(4, 64, kernel_size=(3,3), stride=(2,2),padding=(1,1),bias=False)
+        #    self.extra_conv.weight.data[:,:3,:,:] = self.conv1[0].weight.data
+        #    nn.init.orthogonal_(self.extra_conv.weight[:,3:4,:,:])
+        #    self.conv1[0] = self.extra_conv
+        #    self.bn1 = m.bn1
+        #    self.relu = m.act1  # 1/2, 64
+        #    self.maxpool = m.maxpool
+
+        #    self.layer1 = m.layer1 # 1/4, 64
+        #    self.layer2 = m.layer2 # 1/8, 128
+        #    self.layer3 = m.layer3 # 1/16, 256
+
+        #    self.fuser = FeatureFusionBlock(1024 + 1024, 512)
         #########################################################################
-        elif value_encoder_type == 'resnest101':
-            m = timm.create_model('resnest101e', features_only=True, pretrained=True)
-            self.conv1 = m.conv1
-            self.extra_conv = nn.Conv2d(4, 64, kernel_size=(3,3), stride=(2,2),padding=(1,1),bias=False)
-            self.extra_conv.weight.data[:,:3,:,:] = self.conv1[0].weight.data
-            nn.init.orthogonal_(self.extra_conv.weight[:,3:4,:,:])
-            self.conv1[0] = self.extra_conv
-            self.bn1 = m.bn1
-            self.relu = m.act1  # 1/2, 64
-            self.maxpool = m.maxpool
-
-            self.layer1 = m.layer1 # 1/4, 64
-            self.layer2 = m.layer2 # 1/8, 128
-            self.layer3 = m.layer3 # 1/16, 256
-
-            self.fuser = FeatureFusionBlock(1024 + 1024, 512)
-        ########################################################################
 
     def forward(self, image, key_f16, mask):
         # key_f16 is the feature from the key encoder
@@ -123,7 +130,7 @@ class ValueEncoderSO(nn.Module):
 
 # Multiple objects version, used in other times
 class ValueEncoder(nn.Module):
-    def __init__(self, value_encoder_type='resnet18'):
+    def __init__(self, value_encoder_type='resnet18', key_encoder_type='resnet50'):
         super().__init__()
     
         if value_encoder_type == 'resnet18':
@@ -137,38 +144,45 @@ class ValueEncoder(nn.Module):
             self.layer2 = resnet.layer2 # 1/8, 128
             self.layer3 = resnet.layer3 # 1/16, 256
 
-            self.fuser = FeatureFusionBlock(1024 + 256, 512)
+            if key_encoder_type == 'resnet50' or key_encoder_type == 'wide_resnet50' or key_encoder_type == 'resnest101' or key_encoder_type == 'resnet50_v2':
+                fuse_indim = 1024
+            elif key_encoder_type == 'convext':
+                fuse_indim = 512
+            elif key_encoder_type == 'regnet':
+                fuse_indim = 384
 
-        elif value_encoder_type == 'resnet50':
-            resnet = mod_resnet.resnet50(pretrained=True, extra_chan=2)
-            self.conv1 = resnet.conv1
-            self.bn1 = resnet.bn1
-            self.relu = resnet.relu  # 1/2, 64
-            self.maxpool = resnet.maxpool
+            self.fuser = FeatureFusionBlock(fuse_indim + 256, 512)
 
-            self.layer1 = resnet.layer1 # 1/4, 64
-            self.layer2 = resnet.layer2 # 1/8, 128
-            self.layer3 = resnet.layer3 # 1/16, 256
+        #elif value_encoder_type == 'resnet50':
+        #    resnet = mod_resnet.resnet50(pretrained=True, extra_chan=2)
+        #    self.conv1 = resnet.conv1
+        #    self.bn1 = resnet.bn1
+        #    self.relu = resnet.relu  # 1/2, 64
+        #    self.maxpool = resnet.maxpool
 
-            self.fuser = FeatureFusionBlock(1024 + 1024, 512)
+        #    self.layer1 = resnet.layer1 # 1/4, 64
+        #    self.layer2 = resnet.layer2 # 1/8, 128
+        #    self.layer3 = resnet.layer3 # 1/16, 256
+
+        #    self.fuser = FeatureFusionBlock(1024 + 1024, 512)
 
         #########################################################################
-        elif value_encoder_type == 'resnest101':
-            m = timm.create_model('resnest101e', features_only=True, pretrained=True)
-            self.conv1 = m.conv1
-            self.extra_conv = nn.Conv2d(5, 64, kernel_size=(3,3), stride=(2,2),padding=(1,1),bias=False)
-            self.extra_conv.weight.data[:,:3,:,:] = self.conv1[0].weight.data
-            nn.init.orthogonal_(self.extra_conv.weight[:,3:5,:,:])
-            self.conv1[0] = self.extra_conv
-            self.bn1 = m.bn1
-            self.relu = m.act1  # 1/2, 64
-            self.maxpool = m.maxpool
+        #elif value_encoder_type == 'resnest101':
+        #    m = timm.create_model('resnest101e', features_only=True, pretrained=True)
+        #    self.conv1 = m.conv1
+        #    self.extra_conv = nn.Conv2d(5, 64, kernel_size=(3,3), stride=(2,2),padding=(1,1),bias=False)
+        #    self.extra_conv.weight.data[:,:3,:,:] = self.conv1[0].weight.data
+        #    nn.init.orthogonal_(self.extra_conv.weight[:,3:5,:,:])
+        #    self.conv1[0] = self.extra_conv
+        #    self.bn1 = m.bn1
+        #    self.relu = m.act1  # 1/2, 64
+        #    self.maxpool = m.maxpool
 
-            self.layer1 = m.layer1 # 1/4, 64
-            self.layer2 = m.layer2 # 1/8, 128
-            self.layer3 = m.layer3 # 1/16, 256
+        #    self.layer1 = m.layer1 # 1/4, 64
+        #    self.layer2 = m.layer2 # 1/8, 128
+        #    self.layer3 = m.layer3 # 1/16, 256
 
-            self.fuser = FeatureFusionBlock(1024 + 1024, 512)
+        #    self.fuser = FeatureFusionBlock(1024 + 1024, 512)
         ########################################################################
 
     def forward(self, image, key_f16, mask, other_masks):
@@ -190,13 +204,44 @@ class ValueEncoder(nn.Module):
  
 
 class KeyEncoder(nn.Module):
-    def __init__(self):
+    def __init__(self, key_encoder_type):
         super().__init__()
-        m = timm.create_model('resnest101e', features_only=True, pretrained=True)
-        self.stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
-        self.stage1 = nn.Sequential(m.maxpool,m.layer1)
-        self.stage2 = m.layer2
-        self.stage3 = m.layer3
+        if key_encoder_type == 'resnest101':
+            m = timm.create_model('resnest101e', features_only=True, pretrained=True)
+            self.stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
+            self.stage1 = nn.Sequential(m.maxpool,m.layer1)  #256
+            self.stage2 = m.layer2  #512
+            self.stage3 = m.layer3  #1024
+        elif key_encoder_type == 'wide_resnet50':
+            m = timm.create_model('wide_resnet50_2', features_only=True, pretrained=True)
+            self.stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
+            self.stage1 = nn.Sequential(m.maxpool,m.layer1)  #256
+            self.stage2 = m.layer2  #512
+            self.stage3 = m.layer3  #1024
+        elif key_encoder_type == 'resnet50':
+            m = timm.create_model('resnet50', features_only=True, pretrained=True)
+            self.stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
+            self.stage1 = nn.Sequential(m.maxpool,m.layer1)  #256
+            self.stage2 = m.layer2  #512
+            self.stage3 = m.layer3  #1024
+        elif key_encoder_type == 'resnet50_v2':
+            m = timm.create_model('resnetv2_50x1_bit_distilled', features_only=True, pretrained=True)
+            self.stage0 = nn.Sequential(m.stem_conv,m.stem_pad)
+            self.stage1 = nn.Sequential(m.stem_pool,m.stages_0)  #256
+            self.stage2 = m.stages_1  #512
+            self.stage3 = m.stages_2  #1024
+        elif key_encoder_type == 'regnet':
+            m = timm.create_model('regnetz_e8', features_only=True, pretrained=True)
+            self.stage0 = nn.Sequential(m.stem_conv1,m.stem_conv2)
+            self.stage1 = nn.Sequential(m.stem_conv3,m.stages_0)  #96
+            self.stage2 = m.stages_1  #192
+            self.stage3 = m.stages_2  #384
+        elif key_encoder_type == 'convext':
+            m = timm.create_model('convnext_base_in22ft1k', features_only=True, pretrained=True)
+            self.stage0 = nn.Sequential(m.stem_0,m.stem_1)
+            self.stage1 = m.stages_0  #128
+            self.stage2 = m.stages_1  #256
+            self.stage3 = m.stages_2  #512
 
 
     def forward(self, f):
@@ -204,7 +249,6 @@ class KeyEncoder(nn.Module):
         f4 = self.stage1(self.stage0(f))
         f8 = self.stage2(f4)
         f16 = self.stage3(f8)
-        
 
         return f16, f8, f4
 

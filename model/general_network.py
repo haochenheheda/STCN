@@ -16,16 +16,70 @@ import torch.nn.functional as F
 from model.general_modules import *
 
 
-class Decoder(nn.Module):
+class _ASPPModule(nn.Module):
+    def __init__(self, inplanes, planes, kernel_size, padding, dilation):
+        super(_ASPPModule, self).__init__()
+        self.atrous_conv = nn.Conv2d(inplanes, planes, kernel_size=kernel_size,
+                                            stride=1, padding=padding, dilation=dilation, bias=False)
+
+    def forward(self, x):
+        x = self.atrous_conv(x)
+        return F.relu(x,inplace=True)
+
+
+class ASPP(nn.Module):
     def __init__(self):
+        super(ASPP, self).__init__()
+        dilations = [1, 2, 4, 8]
+
+        self.aspp1 = _ASPPModule(1024, 256, 1, padding=0, dilation=dilations[0])
+        self.aspp2 = _ASPPModule(1024, 256, 3, padding=dilations[1], dilation=dilations[1])
+        self.aspp3 = _ASPPModule(1024, 256, 3, padding=dilations[2], dilation=dilations[2])
+        self.aspp4 = _ASPPModule(1024, 256, 3, padding=dilations[3], dilation=dilations[3])
+        self.conv1 = nn.Conv2d(1024, 256, 1, bias=False)
+
+    def forward(self, x):
+        x1 = self.aspp1(x)
+        x2 = self.aspp2(x)
+        x3 = self.aspp3(x)
+        x4 = self.aspp4(x)
+        x = torch.cat((x1, x2, x3, x4), dim=1)
+        x = self.conv1(x)
+        return F.dropout(F.relu(x),p = 0.5,training=self.training)
+
+
+class Decoder(nn.Module):
+    def __init__(self, key_encoder_type, aspp):
         super().__init__()
-        self.compress = ResBlock(1024, 512)
-        self.up_16_8 = UpsampleBlock(512, 512, 256) # 1/16 -> 1/8
-        self.up_8_4 = UpsampleBlock(256, 256, 256) # 1/8 -> 1/4
+        self.aspp = aspp
+
+        if key_encoder_type == 'resnet50' or key_encoder_type == 'wide_resnet50' or key_encoder_type == 'resnest101' or key_encoder_type == 'resnet50_v2':
+            up_16_8_indim = 512
+            up_8_4_indim = 256
+        elif key_encoder_type == 'convext':
+            up_16_8_indim = 256
+            up_8_4_indim = 128
+        elif key_encoder_type == 'regnet':
+            up_16_8_indim = 192
+            up_8_4_indim = 96
+
+        if self.aspp:
+            indim = 256
+        else:
+            indim = 1024
+
+        if self.aspp:
+            self.ASPP = ASPP()
+
+        self.compress = ResBlock(indim, 512)
+        self.up_16_8 = UpsampleBlock(up_16_8_indim, 512, 256) # 1/16 -> 1/8
+        self.up_8_4 = UpsampleBlock(up_8_4_indim, 256, 256) # 1/8 -> 1/4
 
         self.pred = nn.Conv2d(256, 1, kernel_size=(3,3), padding=(1,1), stride=1)
 
     def forward(self, f16, f8, f4):
+        if self.aspp:
+            f16 = self.ASPP(f16)
         x = self.compress(f16)
         x = self.up_16_8(f8, x)
         x = self.up_8_4(f4, x)
@@ -72,25 +126,34 @@ class MemoryReader(nn.Module):
 
 
 class STCN(nn.Module):
-    def __init__(self, single_object, value_encoder_type = 'resnet18'):
+    def __init__(self, single_object, value_encoder_type = 'resnet18', key_encoder_type = 'resnest101', aspp = False):
         super().__init__()
         self.single_object = single_object
         self.value_encoder_type = value_encoder_type
+        self.key_encoder_type = key_encoder_type
+        self.aspp = aspp
 
-        self.key_encoder = KeyEncoder()
+
+        self.key_encoder = KeyEncoder(self.key_encoder_type)
         if single_object:
-            self.value_encoder = ValueEncoderSO(self.value_encoder_type) 
+            self.value_encoder = ValueEncoderSO(self.value_encoder_type, self.key_encoder_type) 
         else:
-            self.value_encoder = ValueEncoder(self.value_encoder_type) 
+            self.value_encoder = ValueEncoder(self.value_encoder_type, self.key_encoder_type) 
 
+        if self.key_encoder_type == 'resnest101' or self.key_encoder_type == 'resnet50' or self.key_encoder_type == 'wide_resnet50' or self.key_encoder_type == 'resnet50_v2':
+            key_proj_indim = 1024
+        elif self.key_encoder_type == 'convext':
+            key_proj_indim = 512
+        elif self.key_encoder_type == 'regnet':
+            key_proj_indim = 384
         # Projection from f16 feature space to key space
-        self.key_proj = KeyProjection(1024, keydim=64)
+        self.key_proj = KeyProjection(key_proj_indim, keydim=64)
 
         # Compress f16 a bit to use in decoding later on
-        self.key_comp = nn.Conv2d(1024, 512, kernel_size=3, padding=1)
+        self.key_comp = nn.Conv2d(key_proj_indim, 512, kernel_size=3, padding=1)
 
         self.memory = MemoryReader()
-        self.decoder = Decoder()
+        self.decoder = Decoder(self.key_encoder_type, self.aspp)
 
     def aggregate(self, prob):
         new_prob = torch.cat([
