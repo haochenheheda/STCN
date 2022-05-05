@@ -42,6 +42,8 @@ class HyperParameters():
         parser.add_argument('--value_encoder_type', default='resnet18', type=str, help='type of value encoder')
         parser.add_argument('--key_encoder_type', default='resnest101', type=str, help='type of key encoder')
         parser.add_argument('--aspp', action='store_true')
+        parser.add_argument('--crop_size', default=384, type=int, help='crop size during training')
+
 
         if unknown_arg_ok:
             args, _ = parser.parse_known_args()

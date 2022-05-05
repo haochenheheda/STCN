@@ -88,12 +88,12 @@ def construct_loader(dataset):
                             worker_init_fn=worker_init_fn, drop_last=True, pin_memory=True)
     return train_sampler, train_loader
 
-def renew_vos_loader(max_skip):
+def renew_vos_loader(max_skip, crop_size):
     # //5 because we only have annotation for every five frames
     yv_dataset = VOSDataset(path.join(yv_root, 'JPEGImages'), 
-                        path.join(yv_root, 'Annotations'), max_skip//5, is_bl=False, subset=load_sub_yv())
+                        path.join(yv_root, 'Annotations'), max_skip//5, is_bl=False, subset=load_sub_yv(), crop_size = crop_size)
     davis_dataset = VOSDataset(path.join(davis_root, 'JPEGImages', '480p'), 
-                        path.join(davis_root, 'Annotations', '480p'), max_skip, is_bl=False, subset=load_sub_davis())
+                        path.join(davis_root, 'Annotations', '480p'), max_skip, is_bl=False, subset=load_sub_davis(), crop_size = crop_size)
     train_dataset = ConcatDataset([davis_dataset]*5 + [yv_dataset])
 
     print('YouTube dataset size: ', len(yv_dataset))
@@ -103,9 +103,9 @@ def renew_vos_loader(max_skip):
 
     return construct_loader(train_dataset)
 
-def renew_bl_loader(max_skip):
+def renew_bl_loader(max_skip, crop_size):
     train_dataset = VOSDataset(path.join(bl_root, 'JPEGImages'), 
-                        path.join(bl_root, 'Annotations'), max_skip, is_bl=True)
+                        path.join(bl_root, 'Annotations'), max_skip, is_bl=True, crop_size = crop_size)
 
     print('Blender dataset size: ', len(train_dataset))
     print('Renewed with skip: ', max_skip)
@@ -143,7 +143,7 @@ elif para['stage'] == 1:
     increase_skip_fraction = [0.1, 0.2, 0.3, 0.4, 0.8, 1.0]
     bl_root = path.join(path.expanduser(para['bl_root']))
 
-    train_sampler, train_loader = renew_bl_loader(5)
+    train_sampler, train_loader = renew_bl_loader(5,para['crop_size'])
     renew_loader = renew_bl_loader
 else:
     # stage 2 or 3
@@ -152,7 +152,7 @@ else:
     yv_root = path.join(path.expanduser(para['yv_root']), 'train_480p')
     davis_root = path.join(path.expanduser(para['davis_root']), '2017', 'trainval')
 
-    train_sampler, train_loader = renew_vos_loader(5)
+    train_sampler, train_loader = renew_vos_loader(5, para['crop_size'])
     renew_loader = renew_vos_loader
 
 
@@ -181,7 +181,8 @@ try:
                 skip_values = skip_values[1:]
                 increase_skip_epoch = increase_skip_epoch[1:]
             print('Increasing skip to: ', cur_skip)
-            train_sampler, train_loader = renew_loader(cur_skip)
+
+            train_sampler, train_loader = renew_loader(cur_skip, para['crop_size'])
 
         # Crucial for randomness! 
         train_sampler.set_epoch(e)

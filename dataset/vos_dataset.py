@@ -22,11 +22,12 @@ class VOSDataset(Dataset):
     - Apply random transform to each of the frame
     - The distance between frames is controlled
     """
-    def __init__(self, im_root, gt_root, max_jump, is_bl, subset=None):
+    def __init__(self, im_root, gt_root, max_jump, is_bl, subset=None, crop_size = 384):
         self.im_root = im_root
         self.gt_root = gt_root
         self.max_jump = max_jump
         self.is_bl = is_bl
+        self.crop_size = crop_size
 
         self.videos = []
         self.frames = {}
@@ -68,22 +69,22 @@ class VOSDataset(Dataset):
             # Use a different cropping scheme for the blender dataset because the image size is different
             self.all_im_dual_transform = transforms.Compose([
                 transforms.RandomHorizontalFlip(),
-                transforms.RandomResizedCrop((384, 384), scale=(0.25, 1.00), interpolation=InterpolationMode.BICUBIC)
+                transforms.RandomResizedCrop((self.crop_size, self.crop_size), scale=(0.25, 1.00), interpolation=InterpolationMode.BICUBIC)
             ])
 
             self.all_gt_dual_transform = transforms.Compose([
                 transforms.RandomHorizontalFlip(),
-                transforms.RandomResizedCrop((384, 384), scale=(0.25, 1.00), interpolation=InterpolationMode.NEAREST)
+                transforms.RandomResizedCrop((self.crop_size, self.crop_size), scale=(0.25, 1.00), interpolation=InterpolationMode.NEAREST)
             ])
         else:
             self.all_im_dual_transform = transforms.Compose([
                 transforms.RandomHorizontalFlip(),
-                transforms.RandomResizedCrop((384, 384), scale=(0.36,1.00), interpolation=InterpolationMode.BICUBIC)
+                transforms.RandomResizedCrop((self.crop_size, self.crop_size), scale=(0.36,1.00), interpolation=InterpolationMode.BICUBIC)
             ])
 
             self.all_gt_dual_transform = transforms.Compose([
                 transforms.RandomHorizontalFlip(),
-                transforms.RandomResizedCrop((384, 384), scale=(0.36,1.00), interpolation=InterpolationMode.NEAREST)
+                transforms.RandomResizedCrop((self.crop_size, self.crop_size), scale=(0.36,1.00), interpolation=InterpolationMode.NEAREST)
             ])
 
         # Final transform without randomness
@@ -190,7 +191,7 @@ class VOSDataset(Dataset):
             sec_masks = np.zeros_like(tar_masks)
             selector = torch.FloatTensor([1, 0])
 
-        cls_gt = np.zeros((3, 384, 384), dtype=np.int)
+        cls_gt = np.zeros((3, self.crop_size, self.crop_size), dtype=np.int)
         cls_gt[tar_masks[:,0] > 0.5] = 1
         cls_gt[sec_masks[:,0] > 0.5] = 2
 
