@@ -16,6 +16,8 @@ class HyperParameters():
         parser.add_argument('--static_root', help='Static training data root', default='../static')
         parser.add_argument('--bl_root', help='Blender training data root', default='../BL30K')
         parser.add_argument('--yv_root', help='YouTubeVOS data root', default='../YouTube')
+        parser.add_argument('--yvis_root', help='YouTubeVIS data root', default='../YVIS_VOS')
+        parser.add_argument('--ovis_root', help='OVIS data root', default='../OVIS')
         parser.add_argument('--davis_root', help='DAVIS data root', default='../DAVIS')
 
         parser.add_argument('--stage', help='Training stage (0-static images, 1-Blender dataset, 2-DAVIS+YouTubeVOS (300K), 3-DAVIS+YouTubeVOS (150K))', type=int, default=0)
@@ -42,6 +44,7 @@ class HyperParameters():
         parser.add_argument('--value_encoder_type', default='resnet18', type=str, help='type of value encoder')
         parser.add_argument('--key_encoder_type', default='resnest101', type=str, help='type of key encoder')
         parser.add_argument('--aspp', action='store_true')
+        parser.add_argument('--additional_data', action='store_true')
         parser.add_argument('--crop_size', default=384, type=int, help='crop size during training')
 
 
