@@ -92,9 +92,17 @@ def renew_vos_loader(max_skip, crop_size):
     # //5 because we only have annotation for every five frames
     yv_dataset = VOSDataset(path.join(yv_root, 'JPEGImages'), 
                         path.join(yv_root, 'Annotations'), max_skip//5, is_bl=False, subset=load_sub_yv(), crop_size = crop_size)
+
     davis_dataset = VOSDataset(path.join(davis_root, 'JPEGImages', '480p'), 
                         path.join(davis_root, 'Annotations', '480p'), max_skip, is_bl=False, subset=load_sub_davis(), crop_size = crop_size)
-    train_dataset = ConcatDataset([davis_dataset]*5 + [yv_dataset])
+    if para['additional_data']:
+        yvis_dataset = VOSDataset(path.join(yvis_root, 'JPEGImages'), 
+                            path.join(yvis_root, 'Annotations'), max_skip//5, is_bl=False, crop_size = crop_size)
+        ovis_dataset = VOSDataset(path.join(ovis_root, 'JPEGImages'), 
+                            path.join(ovis_root, 'Annotations'), max_skip//5, is_bl=False, crop_size = crop_size)
+        train_dataset = ConcatDataset([davis_dataset]*5 + [yv_dataset] + [yvis_dataset] + [ovis_dataset] * 2)
+    else:
+        train_dataset = ConcatDataset([davis_dataset]*5 + [yv_dataset])
 
     print('YouTube dataset size: ', len(yv_dataset))
     print('DAVIS dataset size: ', len(davis_dataset))
@@ -150,6 +158,8 @@ else:
     increase_skip_fraction = [0.1, 0.2, 0.3, 0.4, 0.9, 1.0]
     # VOS dataset, 480p is used for both datasets
     yv_root = path.join(path.expanduser(para['yv_root']), 'train_480p')
+    yvis_root = path.join(path.expanduser(para['yvis_root']), 'train_480p')
+    ovis_root = path.join(path.expanduser(para['ovis_root']), 'train_480p')
     davis_root = path.join(path.expanduser(para['davis_root']), '2017', 'trainval')
 
     train_sampler, train_loader = renew_vos_loader(5, para['crop_size'])
