@@ -53,7 +53,8 @@ class Decoder(nn.Module):
         super().__init__()
         self.aspp = aspp
 
-        if key_encoder_type == 'resnet50' or key_encoder_type == 'wide_resnet50' or key_encoder_type == 'resnest101' or key_encoder_type == 'resnet50_v2':
+        #if key_encoder_type == 'resnet50' or key_encoder_type == 'wide_resnet50' or key_encoder_type == 'resnest101' or key_encoder_type == 'resnet50_v2':
+        if key_encoder_type in ['resnet50', 'wide_resnet50', 'resnest101', 'resnet50_v2', 'resnet200d', 'seresnet152d','resnest269e', 'ecaresnet269d']:
             up_16_8_indim = 512
             up_8_4_indim = 256
         elif key_encoder_type == 'convext':
@@ -140,7 +141,8 @@ class STCN(nn.Module):
         else:
             self.value_encoder = ValueEncoder(self.value_encoder_type, self.key_encoder_type) 
 
-        if self.key_encoder_type == 'resnest101' or self.key_encoder_type == 'resnet50' or self.key_encoder_type == 'wide_resnet50' or self.key_encoder_type == 'resnet50_v2':
+        #if self.key_encoder_type == 'resnest101' or self.key_encoder_type == 'resnet50' or self.key_encoder_type == 'wide_resnet50' or self.key_encoder_type == 'resnet50_v2':
+        if key_encoder_type in ['resnet50', 'wide_resnet50', 'resnest101', 'resnet50_v2', 'resnet200d', 'seresnet152d','resnest269e', 'ecaresnet269d']:
             key_proj_indim = 1024
         elif self.key_encoder_type == 'convext':
             key_proj_indim = 512

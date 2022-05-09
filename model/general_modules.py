@@ -69,7 +69,8 @@ class ValueEncoderSO(nn.Module):
             self.layer2 = resnet.layer2 # 1/8, 128
             self.layer3 = resnet.layer3 # 1/16, 256
 
-            if key_encoder_type == 'resnet50' or key_encoder_type == 'wide_resnet50' or key_encoder_type == 'resnest101' or key_encoder_type == 'resnet50_v2':
+            #if key_encoder_type == 'resnet50' or key_encoder_type == 'wide_resnet50' or key_encoder_type == 'resnest101' or key_encoder_type == 'resnet50_v2':
+            if key_encoder_type in ['resnet50', 'wide_resnet50', 'resnest101', 'resnet50_v2', 'resnet200d', 'seresnet152d','resnest269e', 'ecaresnet269d']:
                 fuse_indim = 1024
             elif key_encoder_type == 'convext':
                 fuse_indim = 512
@@ -144,7 +145,8 @@ class ValueEncoder(nn.Module):
             self.layer2 = resnet.layer2 # 1/8, 128
             self.layer3 = resnet.layer3 # 1/16, 256
 
-            if key_encoder_type == 'resnet50' or key_encoder_type == 'wide_resnet50' or key_encoder_type == 'resnest101' or key_encoder_type == 'resnet50_v2':
+            #if key_encoder_type == 'resnet50' or key_encoder_type == 'wide_resnet50' or key_encoder_type == 'resnest101' or key_encoder_type == 'resnet50_v2':
+            if key_encoder_type in ['resnet50', 'wide_resnet50', 'resnest101', 'resnet50_v2', 'resnet200d', 'seresnet152d','resnest269e', 'ecaresnet269d']:
                 fuse_indim = 1024
             elif key_encoder_type == 'convext':
                 fuse_indim = 512
@@ -206,7 +208,31 @@ class ValueEncoder(nn.Module):
 class KeyEncoder(nn.Module):
     def __init__(self, key_encoder_type):
         super().__init__()
-        if key_encoder_type == 'resnest101':
+        if key_encoder_type == 'resnest269e':
+            m = timm.create_model('resnest269e', features_only=True, pretrained=True)
+            self.stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
+            self.stage1 = nn.Sequential(m.maxpool,m.layer1)  #256
+            self.stage2 = m.layer2  #512
+            self.stage3 = m.layer3  #1024
+        elif key_encoder_type == 'ecaresnet269d':
+            m = timm.create_model('ecaresnet269d', features_only=True, pretrained=True)
+            self.stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
+            self.stage1 = nn.Sequential(m.maxpool,m.layer1)  #256
+            self.stage2 = m.layer2  #512
+            self.stage3 = m.layer3  #1024
+        elif key_encoder_type == 'resnet200d':
+            m = timm.create_model('resnet200d', features_only=True, pretrained=True)
+            self.stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
+            self.stage1 = nn.Sequential(m.maxpool,m.layer1)  #256
+            self.stage2 = m.layer2  #512
+            self.stage3 = m.layer3  #1024
+        elif key_encoder_type == 'seresnet152d':
+            m = timm.create_model('seresnet152d', features_only=True, pretrained=True)
+            self.stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
+            self.stage1 = nn.Sequential(m.maxpool,m.layer1)  #256
+            self.stage2 = m.layer2  #512
+            self.stage3 = m.layer3  #1024
+        elif key_encoder_type == 'resnest101':
             m = timm.create_model('resnest101e', features_only=True, pretrained=True)
             self.stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
             self.stage1 = nn.Sequential(m.maxpool,m.layer1)  #256

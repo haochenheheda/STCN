@@ -5,15 +5,74 @@ import timm
 
 input_tensor = torch.randn(2, 3, 224, 224)
 
+#########
+m = timm.create_model('ecaresnet269d', features_only=True, pretrained=True)
+o = m(input_tensor)
 
+stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
+stage1 = nn.Sequential(m.maxpool,m.layer1)
+stage2 = m.layer2
+stage3 = m.layer3
+stage4 = m.layer4
+
+for x in o:
+    print(x.shape)
+
+import pdb
+pdb.set_trace()
+#########
+m = timm.create_model('resnest269e', features_only=True, pretrained=True)
+o = m(input_tensor)
+
+stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
+stage1 = nn.Sequential(m.maxpool,m.layer1)
+stage2 = m.layer2
+stage3 = m.layer3
+stage4 = m.layer4
+
+for x in o:
+    print(x.shape)
+
+import pdb
+pdb.set_trace()
+
+#########
+m = timm.create_model('resnet200d', features_only=True, pretrained=True)
+o = m(input_tensor)
+
+stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
+stage1 = nn.Sequential(m.maxpool,m.layer1)
+stage2 = m.layer2
+stage3 = m.layer3
+stage4 = m.layer4
+
+for x in o:
+    print(x.shape)
+
+import pdb
+pdb.set_trace()
+
+#########
+m = timm.create_model('seresnet152d', features_only=True, pretrained=True)
+o = m(input_tensor)
+
+stage0 = nn.Sequential(m.conv1,m.bn1,m.act1)
+stage1 = nn.Sequential(m.maxpool,m.layer1)
+stage2 = m.layer2
+stage3 = m.layer3
+stage4 = m.layer4
+
+for x in o:
+    print(x.shape)
+
+import pdb
+pdb.set_trace()
 ##########
 m = timm.create_model('resnetv2_50x1_bit_distilled', features_only=True, pretrained=True)
 o = m(input_tensor)
 
 for x in o:
     print(x.shape)
-import pdb
-pdb.set_trace()
 
 ###########
 m = timm.create_model('resnet50', features_only=True, pretrained=True)
