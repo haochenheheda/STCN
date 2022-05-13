@@ -48,7 +48,7 @@ class STCNModel:
         # Logging info
         self.report_interval = 100
         self.save_im_interval = 800
-        self.save_model_interval = 50000
+        self.save_model_interval = 100000
         if para['debug']:
             self.report_interval = self.save_im_interval = 1
 
