@@ -58,6 +58,8 @@ parser.add_argument('--sigma', type=int, default=17)
 parser.add_argument('--res', type=int, default=480)
 parser.add_argument('--save_logits', help='save logits for multi-scale inference or ensemble', action='store_true')
 parser.add_argument('--value_encoder_type', type=str, default='resnet18')
+parser.add_argument('--key_encoder_type', type=str, default='resnest101')
+parser.add_argument('--aspp', action='store_true')
 
 
 args = parser.parse_args()
@@ -83,7 +85,7 @@ test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=
 # Load our checkpoint
 top_k = args.top
 sigma = args.sigma
-prop_model = STCN(args.value_encoder_type).cuda().eval()
+prop_model = STCN(args.value_encoder_type, args.key_encoder_type, args.aspp).cuda().eval()
 
 # Performs input mapping such that stage 0 model can be loaded
 prop_saved = torch.load(args.model)

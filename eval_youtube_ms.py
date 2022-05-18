@@ -54,7 +54,7 @@ parser.add_argument('--include_last', help='include last frame as temporary memo
 parser.add_argument('--vis', help='visualize the outputs for analysis', action='store_true')
 parser.add_argument('--vname', type=str, default='')
 parser.add_argument('--memory_type', type=str, default='topk')
-parser.add_argument('--sigma', type=int, default=7)
+parser.add_argument('--sigma', type=int, default=17)
 
 
 args = parser.parse_args()
@@ -83,8 +83,6 @@ test_loader1 = DataLoader(test_dataset1, batch_size=1, shuffle=False, num_worker
 test_iter600 = iter(test_loader1)
 
 # Load our checkpoint
-top_k = args.top
-sigma = args.sigma
 prop_model = STCN().cuda().eval()
 
 # Performs input mapping such that stage 0 model can be loaded
@@ -151,8 +149,12 @@ while True:
 
             if inference_setting in ['480o', '480f']:
                 memory_type = 'topk'
+                sigma = 17
+                top_k = 20
             elif inference_setting in ['600o', '600f']:
                 memory_type = 'kmn'
+                sigma = 17
+                top_k = 20
 
             processor = InferenceCore(prop_model, rgb, num_objects=num_objects, top_k=top_k, 
                                         mem_every=args.mem_every, include_last=args.include_last, 

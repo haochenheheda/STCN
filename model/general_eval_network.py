@@ -14,20 +14,27 @@ import torch.nn.functional as F
 from model.general_modules import *
 from model.general_network import Decoder
 
-
 class STCN(nn.Module):
-    def __init__(self, value_encoder_type):
+    def __init__(self, value_encoder_type = 'resnet18', key_encoder_type = 'resnest101', aspp = False):
         super().__init__()
-        self.key_encoder = KeyEncoder() 
-        self.value_encoder = ValueEncoder(value_encoder_type = value_encoder_type) 
+        self.key_encoder = KeyEncoder(key_encoder_type) 
+        self.value_encoder = ValueEncoder(value_encoder_type, key_encoder_type) 
+
+
+        if key_encoder_type in ['resnet50', 'wide_resnet50', 'resnest101', 'resnet50_v2', 'resnet200d', 'seresnet152d','resnest269e', 'ecaresnet269d']:
+            key_proj_indim = 1024
+        elif key_encoder_type == 'convext':
+            key_proj_indim = 512
+        elif key_encoder_type == 'regnet':
+            key_proj_indim = 384
 
         # Projection from f16 feature space to key space
-        self.key_proj = KeyProjection(1024, keydim=64)
+        self.key_proj = KeyProjection(key_proj_indim, keydim=64)
 
         # Compress f16 a bit to use in decoding later on
-        self.key_comp = nn.Conv2d(1024, 512, kernel_size=3, padding=1)
+        self.key_comp = nn.Conv2d(key_proj_indim, 512, kernel_size=3, padding=1)
 
-        self.decoder = Decoder()
+        self.decoder = Decoder(key_encoder_type, aspp)
 
     def encode_value(self, frame, kf16, masks): 
         k, _, h, w = masks.shape

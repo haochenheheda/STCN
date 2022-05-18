@@ -54,7 +54,7 @@ parser.add_argument('--include_last', help='include last frame as temporary memo
 parser.add_argument('--vis', help='visualize the outputs for analysis', action='store_true')
 parser.add_argument('--vname', type=str, default='')
 parser.add_argument('--memory_type', type=str, default='topk')
-parser.add_argument('--sigma', type=int, default=7)
+parser.add_argument('--sigma', type=int, default=17)
 parser.add_argument('--res', type=int, default=480)
 parser.add_argument('--save_logits', help='save logits for multi-scale inference or ensemble', action='store_true')
 
