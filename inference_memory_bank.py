@@ -1,6 +1,7 @@
 import math
 import torch
 from model.positional_encodings import PositionalEncodingPermute3D
+import torch.nn.functional as F
 
 def softmax(x):
     x_exp = x.exp_()
@@ -9,9 +10,11 @@ def softmax(x):
 
 def softmax_w_top(x, top):
     values, indices = torch.topk(x, k=top, dim=1)
-    x_exp = values.exp_()
+    x_exp = F.softmax(values,dim=1)
 
-    x_exp /= torch.sum(x_exp, dim=1, keepdim=True)
+    #x_exp = values.exp_()
+    #x_exp /= torch.sum(x_exp, dim=1, keepdim=True)
+
     # The types should be the same already
     # some people report an error here so an additional guard is added
     x.zero_().scatter_(1, indices, x_exp.type(x.dtype)) # B * THW * HW
