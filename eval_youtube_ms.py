@@ -24,7 +24,7 @@ import numpy as np
 from PIL import Image
 import cv2
 
-from model.eval_network import STCN
+from model.general_eval_network import STCN
 from dataset.yv_test_dataset import YouTubeVOSTestDataset
 from util.tensor_util import unpad
 from inference_core_yv import InferenceCore
@@ -56,6 +56,11 @@ parser.add_argument('--vname', type=str, default='')
 parser.add_argument('--memory_type', type=str, default='topk')
 parser.add_argument('--sigma', type=int, default=17)
 
+parser.add_argument('--save_logits', help='save logits for multi-scale inference or ensemble', action='store_true')
+parser.add_argument('--value_encoder_type', type=str, default='resnet18')
+parser.add_argument('--key_encoder_type', type=str, default='resnest101')
+parser.add_argument('--aspp', action='store_true')
+
 
 args = parser.parse_args()
 
@@ -83,15 +88,15 @@ test_loader1 = DataLoader(test_dataset1, batch_size=1, shuffle=False, num_worker
 test_iter600 = iter(test_loader1)
 
 # Load our checkpoint
-prop_model = STCN().cuda().eval()
+prop_model = STCN(args.value_encoder_type, args.key_encoder_type, args.aspp).cuda().eval()
 
 # Performs input mapping such that stage 0 model can be loaded
 prop_saved = torch.load(args.model)
-for k in list(prop_saved.keys()):
-    if k == 'value_encoder.conv1.weight':
-        if prop_saved[k].shape[1] == 4:
-            pads = torch.zeros((64,1,7,7), device=prop_saved[k].device)
-            prop_saved[k] = torch.cat([prop_saved[k], pads], 1)
+#for k in list(prop_saved.keys()):
+#    if k == 'value_encoder.conv1.weight':
+#        if prop_saved[k].shape[1] == 4:
+#            pads = torch.zeros((64,1,7,7), device=prop_saved[k].device)
+#            prop_saved[k] = torch.cat([prop_saved[k], pads], 1)
 prop_model.load_state_dict(prop_saved)
 
 # Start eval
@@ -152,7 +157,7 @@ while True:
                 sigma = 17
                 top_k = 20
             elif inference_setting in ['600o', '600f']:
-                memory_type = 'kmn'
+                memory_type = 'topk'
                 sigma = 17
                 top_k = 20
 
@@ -202,6 +207,7 @@ while True:
 
 
     #out_masks = (out_masks.detach().cpu().numpy()[:,0]).astype(np.uint8)
+    out_logits = out_logits / 4
     out_masks = (torch.argmax(out_logits, dim=1).detach().cpu().numpy()[:,0]).astype(np.uint8)
     # Remap the indices to the original domain
     idx_masks = np.zeros_like(out_masks)
@@ -212,6 +218,11 @@ while True:
     # Save the results
     this_out_path = path.join(out_path, 'Annotations', name)
     os.makedirs(this_out_path, exist_ok=True)
+    this_logits_path = path.join(out_path, 'Ensemble', 'Probs', name)
+    os.makedirs(this_logits_path, exist_ok=True)
+    this_logits_id_path = path.join(out_path, 'Ensemble', 'Ids', name)
+    os.makedirs(this_logits_id_path, exist_ok=True)
+
     if args.vis:
         this_out_vis_path = path.join(out_path, 'Vis', name)
         os.makedirs(this_out_vis_path, exist_ok=True)
@@ -225,6 +236,17 @@ while True:
                 img_E = Image.fromarray(idx_masks[f])
                 img_E.putpalette(palette)
                 img_E.save(os.path.join(this_out_path, info['frames'][f][0].replace('.jpg','.png')))
+
+                if args.save_logits:
+                    backward_idxs = []
+                    for i in range(1, num_objects+1):
+                        backward_idxs.append(info['label_backward'][i].item())
+                    backward_idxs = np.array(backward_idxs)
+                    np.save(os.path.join(this_logits_id_path, info['frames'][f][0].replace('.jpg','.npy')), backward_idxs)
+
+                    for i in range(out_logits[f].shape[0]):
+                        tmp_logits = out_logits[f][i,0].cpu().numpy() * 255.
+                        cv2.imwrite(os.path.join(this_logits_path, info['frames'][f][0][:-4] + '_' + str(i) + '.jpg'), tmp_logits)
 
                 if args.vis:
                     img_E_array = np.array(img_E.convert('RGB'))
