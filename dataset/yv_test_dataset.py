@@ -13,7 +13,7 @@ from dataset.util import all_to_onehot
 
 
 class YouTubeVOSTestDataset(Dataset):
-    def __init__(self, data_root, split, vname = '', res=480):
+    def __init__(self, data_root, split, vname = '', res=480, start = 0, end = 746):
         self.image_dir = path.join(data_root, 'all_frames', split+'_all_frames', 'JPEGImages')
         self.mask_dir = path.join(data_root, split, 'Annotations')
 
@@ -22,6 +22,7 @@ class YouTubeVOSTestDataset(Dataset):
         self.frames = {}
 
         vid_list = sorted(os.listdir(self.image_dir))
+        vid_list = vid_list[start:end]
 
         if ',' in vname:
             vnames = vname.split(',')

@@ -25,6 +25,7 @@ from PIL import Image
 import cv2
 
 from model.general_eval_network import STCN
+#from model.eval_network import STCN
 from dataset.yv_test_dataset import YouTubeVOSTestDataset
 from util.tensor_util import unpad
 from inference_core_yv import InferenceCore
@@ -49,7 +50,7 @@ parser.add_argument('--output')
 parser.add_argument('--split', help='valid/test', default='valid')
 parser.add_argument('--top', type=int, default=20)
 parser.add_argument('--amp', action='store_true')
-parser.add_argument('--mem_every', default=5, type=int)
+parser.add_argument('--mem_every', default=1, type=int)
 parser.add_argument('--include_last', help='include last frame as temporary memory?', action='store_true')
 parser.add_argument('--vis', help='visualize the outputs for analysis', action='store_true')
 parser.add_argument('--vname', type=str, default='')
@@ -60,6 +61,9 @@ parser.add_argument('--save_logits', help='save logits for multi-scale inference
 parser.add_argument('--value_encoder_type', type=str, default='resnet18')
 parser.add_argument('--key_encoder_type', type=str, default='resnest101')
 parser.add_argument('--aspp', action='store_true')
+
+parser.add_argument('--start', type=int, default=0)
+parser.add_argument('--end', type=int, default=746)
 
 
 args = parser.parse_args()
@@ -79,16 +83,17 @@ if not args.output_all:
         meta = json.load(f)['videos']
 
 # Setup Dataset
-test_dataset = YouTubeVOSTestDataset(data_root=yv_path, split=args.split, vname = args.vname, res = 480)
+test_dataset = YouTubeVOSTestDataset(data_root=yv_path, split=args.split, vname = args.vname, res = 480, start = args.start, end = args.end)
 test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)
 test_iter480 = iter(test_loader)
 
-test_dataset1 = YouTubeVOSTestDataset(data_root=yv_path, split=args.split, vname = args.vname, res = 600)
+test_dataset1 = YouTubeVOSTestDataset(data_root=yv_path, split=args.split, vname = args.vname, res = 600, start = args.start, end = args.end)
 test_loader1 = DataLoader(test_dataset1, batch_size=1, shuffle=False, num_workers=4)
 test_iter600 = iter(test_loader1)
 
 # Load our checkpoint
 prop_model = STCN(args.value_encoder_type, args.key_encoder_type, args.aspp).cuda().eval()
+#prop_model = STCN().cuda().eval()
 
 # Performs input mapping such that stage 0 model can be loaded
 prop_saved = torch.load(args.model)
@@ -99,6 +104,13 @@ prop_saved = torch.load(args.model)
 #            prop_saved[k] = torch.cat([prop_saved[k], pads], 1)
 prop_model.load_state_dict(prop_saved)
 
+#if args.split == 'val':
+#    total_num = 507
+#elif args.split == 'test':
+#    total_num = 746
+
+total_num = (args.end - args.start)
+
 # Start eval
 inference_num = 0
 while True:
@@ -106,7 +118,7 @@ while True:
     inference_num += 1
 
     ##############################
-    if inference_num > 507:
+    if inference_num > total_num:
         break
     ##############################
 
@@ -246,7 +258,9 @@ while True:
 
                     for i in range(out_logits[f].shape[0]):
                         tmp_logits = out_logits[f][i,0].cpu().numpy() * 255.
+                        #tmp_logits = tmp_logits.astype(np.uint8)
                         cv2.imwrite(os.path.join(this_logits_path, info['frames'][f][0][:-4] + '_' + str(i) + '.jpg'), tmp_logits)
+                        #np.save(os.path.join(this_logits_path, info['frames'][f][0][:-4] + '_' + str(i) + '.npy'), tmp_logits)
 
                 if args.vis:
                     img_E_array = np.array(img_E.convert('RGB'))
